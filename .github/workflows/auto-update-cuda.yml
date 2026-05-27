@@ -1,0 +1,78 @@
+name: Auto Update CUDA Version
+
+# Detects newly released CUDA Toolkit versions on NVIDIA's site and, when found,
+# adds their installer links, bumps the action default + version, rebuilds the
+# bundled dist/, and commits straight to master.
+#
+# A push to master made with GITHUB_TOKEN does not trigger other workflows
+# (GitHub loop-prevention), so CI.yml / Check-dist.yml will NOT run on the bot
+# commit. This job therefore lints, tests, and rebuilds dist/ *before* committing
+# so a bad scrape fails here instead of reaching master.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "55 14 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for new CUDA versions
+        run: npm run update-links
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet -- src/links/linux-links.json src/links/windows-links.json; then
+            echo 'No new CUDA versions.'
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            newest=$(node -p "Object.keys(require('./src/links/windows-links.json').local)[0]")
+            echo "Newest CUDA version: ${newest}"
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            echo "newest=${newest}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump default and package version
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          # Replace the cuda input default (the first `default:` in action.yml).
+          sed -i "0,/default: /s|default: .*|default: '${{ steps.changes.outputs.newest }}'|" action.yml
+          npm version patch --no-git-tag-version
+
+      - name: Rebuild, lint and test
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          npm run bundle
+          npm run lint
+          npm run ci-test
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add src/links/linux-links.json src/links/windows-links.json action.yml package.json package-lock.json dist
+          git commit -m "feat: add CUDA ${{ steps.changes.outputs.newest }} support and bump to v${version}"
+          git push origin master
+          git tag "v${version}"
+          git push origin "v${version}"

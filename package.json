@@ -1,7 +1,7 @@
 {
   "name": "cuda-toolkit",
   "description": "GitHub Action to install the NVIDIA CUDA Toolkit",
-  "version": "0.2.35",
+  "version": "0.2.36",
   "author": "Jim Verheijde",
   "type": "module",
   "private": true,
@@ -38,6 +38,7 @@
     "package": "npx rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "package:watch": "npm run package -- --watch",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 npx jest",
+    "update-links": "npx tsx scripts/update-links/index.ts",
     "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
   },
   "license": "MIT",
@@ -57,9 +58,9 @@
     "@github/local-action": "^3.2.1",
     "@jest/globals": "^29.7.0",
     "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.1",
-    "@rollup/plugin-json": "^6.1.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.48",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
@@ -78,6 +79,7 @@
     "rollup": "^4.41.0",
     "ts-jest": "^29.3.4",
     "ts-jest-resolver": "^2.0.1",
+    "tsx": "^4.22.3",
     "typescript": "^5.8.3"
   },
   "optionalDependencies": {
